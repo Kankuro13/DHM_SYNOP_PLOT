@@ -171,6 +171,160 @@
       z-index: 1000;
       max-width: 300px;
     }
+
+    /* Export Drawer Styles */
+    .export-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 60%;
+      height: 100vh;
+      background: white;
+      border-left: 2px solid #ccc;
+      box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .export-drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      background: #f0f0f0;
+      border-bottom: 1px solid #ccc;
+    }
+
+    .export-drawer-header h3 {
+      margin: 0;
+      font-family: "Georgia", "Times New Roman", Times, serif;
+    }
+
+    .export-drawer-header .btn {
+      background: #ff3636;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .export-drawer-content {
+      flex: 1;
+      display: flex;
+      height: calc(100vh - 70px);
+    }
+
+    .export-list {
+      width: 40%;
+      padding: 15px;
+      border-right: 1px solid #ccc;
+      overflow-y: auto;
+      background: #f9f9f9;
+    }
+
+    .export-item {
+      padding: 10px;
+      margin: 5px 0;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      transition: background 0.2s;
+      position: relative;
+    }
+
+    .export-item:hover {
+      background: #e0e0e0;
+    }
+
+    .export-item.selected {
+      background: #4b6cb7;
+      color: white;
+    }
+
+    .export-item-name {
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .export-item-format {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .export-item-format.pdf {
+      background: #ff4757;
+      color: white;
+    }
+
+    .export-item-format.png {
+      background: #2ed573;
+      color: white;
+    }
+
+    .export-item-format.jpeg {
+      background: #ffa502;
+      color: white;
+    }
+
+    .export-item-meta {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .export-item.selected .export-item-meta {
+      color: #ccc;
+    }
+
+    .export-preview {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5f5;
+    }
+
+    .export-preview-placeholder {
+      text-align: center;
+      color: #666;
+      font-size: 18px;
+    }
+
+    #export-preview-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .export-loading {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+    }
+
+    /* Keep backward compatibility for PDF classes */
+    .pdf-drawer { @extend .export-drawer; }
+    .pdf-drawer-header { @extend .export-drawer-header; }
+    .pdf-drawer-content { @extend .export-drawer-content; }
+    .pdf-list { @extend .export-list; }
+    .pdf-item { @extend .export-item; }
+    .pdf-item-name { @extend .export-item-name; }
+    .pdf-item-meta { @extend .export-item-meta; }
+    .pdf-preview { @extend .export-preview; }
+    .pdf-preview-placeholder { @extend .export-preview-placeholder; }
+    #pdf-preview-frame { @extend #export-preview-frame; }
+    .pdf-loading { @extend .export-loading; }
   </style>
 </head>
 
@@ -225,11 +379,11 @@
           </select>
         </div>
       </div>
-      <div>
-        <!-- <img src="res/iocns/profile.svg" alt="Profile" class="profile" title="Login"> -->
-        <a href="index.html"><img src="res/iocns/vector-29.svg" alt="Profile" class="profile" title="Logout"
-            style="transform: rotate(90deg);"></a>
-
+      <div class="toolbar-child">
+        <!-- Export Container Button -->
+        <div class="toolbar-items">
+          <div class="item export-container" title="Export Container"><img src="res/iocns/vector-29.svg" alt="Export Container" style="transform: rotate(0deg);"></div>
+        </div>
       </div>
     </div>
     <!-- Menubar -->
@@ -274,6 +428,37 @@
         </div> -->
         <div class="legend-content">
           <span id="legend-observation-time">Observation Time: N/A</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PDF Drawer Panel -->
+    <div id="pdf-drawer" class="pdf-drawer" style="display: none;">
+      <div class="pdf-drawer-header">
+        <h3>Saved PDFs</h3>
+        <button id="pdf-drawer-close" class="btn">Close</button>
+      </div>
+      <div id="pdf-list" class="pdf-list">
+        <!-- Filled dynamically -->
+      </div>
+      <div class="pdf-preview">
+        <iframe id="pdf-preview-frame" title="PDF Preview" style="width: 100%; height: 100%; border: none;"></iframe>
+      </div>
+    </div>
+
+    <!-- Export Drawer Panel -->
+    <div id="export-drawer" class="export-drawer" style="display: none;">
+      <div class="export-drawer-header">
+        <h3>Saved Exports</h3>
+        <button id="export-drawer-close" class="btn">×</button>
+      </div>
+      <div class="export-drawer-content">
+        <div id="export-list" class="export-list">
+          <div class="export-loading">Loading exports...</div>
+        </div>
+        <div class="export-preview">
+          <div class="export-preview-placeholder">Select an export to preview</div>
+          <iframe id="export-preview-frame" title="Export Preview" style="display: none;"></iframe>
         </div>
       </div>
     </div>

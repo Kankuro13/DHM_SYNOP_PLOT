@@ -127,7 +127,7 @@ class PressureCenter(models.Model):
 class ExportedMap(models.Model):
     file_name = models.CharField(max_length=255)
     file_path = models.FileField(upload_to='exports/')
-    map_type = models.CharField(max_length=50, choices=[('PNG', 'PNG'), ('SVG', 'SVG')])
+    map_type = models.CharField(max_length=50, choices=[('PNG', 'PNG'), ('SVG', 'SVG'), ('PDF', 'PDF')])
     level = models.CharField(
         max_length=10,
         choices=[

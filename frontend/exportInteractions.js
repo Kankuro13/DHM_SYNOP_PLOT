@@ -2,6 +2,7 @@ import DragBox from 'ol/interaction/DragBox';
 import { jsPDF } from 'jspdf';
 import { platformModifierKeyOnly } from 'ol/events/condition';
 import { showSpinner, hideSpinner, showWarning } from './utils.js';
+import { config } from './config.js';
 
 let dragBoxInteraction = null;
 
@@ -144,12 +145,46 @@ if (observationTime.toLowerCase().startsWith('observation time:')) {
           });
           const imgData = finalCanvas.toDataURL('image/png', 1.0);
           pdf.addImage(imgData, 'PNG', 0, 0, finalCanvas.width, finalCanvas.height);
+          
+          // Save to database - use direct binary output instead of blob
+          try {
+            const pdfData = pdf.output('datauristring'); // Get data URI directly
+            console.log('PDF data URI length:', pdfData.length);
+            console.log('PDF data URI starts with:', pdfData.substring(0, 50));
+            
+            saveExportToDatabaseDirect(pdfData, filename, 'PDF', extent).then(() => {
+              showWarning('PDF saved to database successfully.', false);
+            }).catch((error) => {
+              console.error('Failed to save PDF to database:', error);
+              showWarning('PDF export completed but failed to save to database.', true);
+            });
+          } catch (error) {
+            console.error('Error generating PDF data:', error);
+            showWarning('Failed to generate PDF data.', true);
+          }
+          
+          // Also download the PDF
           pdf.save(`${filename}.pdf`);
           showWarning('PDF exported successfully.', false);
         } else {
           const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
           const quality = format === 'jpeg' ? 0.9 : 1.0;
           const dataUrl = finalCanvas.toDataURL(mimeType, quality);
+          
+          // Save to database
+          try {
+            saveExportToDatabaseDirect(dataUrl, filename, format.toUpperCase(), extent).then(() => {
+              showWarning(`${format.toUpperCase()} saved to database successfully.`, false);
+            }).catch((error) => {
+              console.error(`Failed to save ${format} to database:`, error);
+              showWarning(`${format.toUpperCase()} export completed but failed to save to database.`, true);
+            });
+          } catch (error) {
+            console.error(`Error saving ${format} to database:`, error);
+            showWarning(`Failed to save ${format.toUpperCase()} to database.`, true);
+          }
+          
+          // Also download the file
           const link = document.createElement('a');
           link.href = dataUrl;
           link.download = `${filename}.${format}`;
@@ -279,4 +314,159 @@ export function addDragBoxExportInteraction(map, callback) {
   map.addInteraction(dragBoxInteraction);
 }
 
-export { exportMap, copyMapToClipboard };
+/**
+ * Save PDF blob to the database via API
+ * @param {Blob} pdfBlob - The PDF blob to save
+ * @param {string} filename - The filename for the PDF
+ * @param {Array} extent - The map extent (optional)
+ */
+async function savePDFToDatabase(pdfBlob, filename, extent = null) {
+  try {
+    console.log('savePDFToDatabase called with blob size:', pdfBlob.size);
+    
+    // Convert blob to base64
+    const base64Data = await blobToBase64(pdfBlob);
+    console.log('Base64 data length:', base64Data.length);
+    console.log('Base64 data starts with:', base64Data.substring(0, 50));
+    
+    // Get current observation time
+    const observationTimeElement = document.getElementById('observation-time');
+    const observationTime = observationTimeElement ? observationTimeElement.value : null;
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('pdf_data', base64Data);
+    formData.append('level', 'SURFACE'); // Default level
+    if (observationTime) {
+      formData.append('observation_time', observationTime);
+    }
+    
+    // Send to API
+    const normalizedApiBaseUrl = config.apiBaseUrl.endsWith('/') ? config.apiBaseUrl : `${config.apiBaseUrl}/`;
+    const apiUrl = `${normalizedApiBaseUrl}api/pdf-export/`;
+    console.log('Sending request to:', apiUrl);
+    console.log('FormData keys:', Array.from(formData.keys()));
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      body: formData
+    });
+    
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+    
+    if (!response.ok) {
+      console.error('Response not ok:', response.status, response.statusText);
+      let errorData;
+      try {
+        errorData = await response.json();
+        console.error('Error data from server:', errorData);
+      } catch (e) {
+        console.error('Could not parse error response as JSON:', e);
+        const errorText = await response.text();
+        console.error('Error response text:', errorText);
+        errorData = { error: errorText || `HTTP ${response.status}` };
+      }
+      throw new Error(errorData.error || 'Failed to save PDF');
+    }
+    
+    const result = await response.json();
+    console.log('PDF saved to database:', result);
+    return result;
+    
+  } catch (error) {
+    console.error('Error saving PDF to database:', error);
+    throw error;
+  }
+}
+
+/**
+ * Convert blob to base64 string
+ * @param {Blob} blob - The blob to convert
+ * @returns {Promise<string>} Base64 string
+ */
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      console.log('FileReader result type:', typeof reader.result);
+      console.log('FileReader result length:', reader.result?.length);
+      resolve(reader.result);
+    };
+    reader.onerror = (error) => {
+      console.error('FileReader error:', error);
+      reject(error);
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Save export file data URI directly to the database via API
+ * @param {string} fileDataUri - The file data URI
+ * @param {string} filename - The filename for the export
+ * @param {string} format - The file format (PDF, PNG, JPEG)
+ * @param {Array} extent - The map extent (optional)
+ */
+async function saveExportToDatabaseDirect(fileDataUri, filename, format, extent = null) {
+  try {
+    console.log(`saveExportToDatabaseDirect called for ${format} with data URI length:`, fileDataUri.length);
+    
+    // Get current observation time
+    const observationTimeElement = document.getElementById('observation-time');
+    const observationTime = observationTimeElement ? observationTimeElement.value : null;
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('file_data', fileDataUri); // Send data URI directly
+    formData.append('format', format); // PDF, PNG, or JPEG
+    formData.append('level', 'SURFACE'); // Default level
+    if (observationTime) {
+      formData.append('observation_time', observationTime);
+    }
+    
+    // Send to API
+    const normalizedApiBaseUrl = config.apiBaseUrl.endsWith('/') ? config.apiBaseUrl : `${config.apiBaseUrl}/`;
+    const apiUrl = `${normalizedApiBaseUrl}api/export-file/`;
+    console.log(`Sending ${format} export request to:`, apiUrl);
+    console.log('FormData keys:', Array.from(formData.keys()));
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      body: formData
+    });
+    
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+    
+    if (!response.ok) {
+      console.error('Response not ok:', response.status, response.statusText);
+      let errorData;
+      try {
+        errorData = await response.json();
+        console.error('Error data from server:', errorData);
+      } catch (e) {
+        console.error('Could not parse error response as JSON:', e);
+        const errorText = await response.text();
+        console.error('Error response text:', errorText);
+        errorData = { error: errorText || `HTTP ${response.status}` };
+      }
+      throw new Error(errorData.error || `Failed to save ${format}`);
+    }
+    
+    const result = await response.json();
+    console.log(`${format} saved to database:`, result);
+    return result;
+    
+  } catch (error) {
+    console.error('Error saving PDF to database:', error);
+    throw error;
+  }
+}
+
+// Keep backward compatibility function
+async function savePDFToDatabaseDirect(pdfDataUri, filename, extent = null) {
+  return saveExportToDatabaseDirect(pdfDataUri, filename, 'PDF', extent);
+}
+
+export { exportMap, copyMapToClipboard, savePDFToDatabase, savePDFToDatabaseDirect, saveExportToDatabaseDirect };

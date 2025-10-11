@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
@@ -26,6 +27,10 @@ from celery.result import AsyncResult
 import os
 from django.conf import settings
 from django.db.models import Count
+from django.core.files.base import ContentFile
+from django.http import HttpResponse, Http404
+import base64
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -475,3 +480,207 @@ class GridDataViewSet(viewsets.ReadOnlyModelViewSet):
         if len(data) > 1000:
             logger.info(f"Returning large GridData response with {len(data)} items")
         return Response(data)
+
+
+class ExportFileView(APIView):
+    """Handle export file uploads (PDF, PNG, JPEG) and save them to the database."""
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        """Save an export file to the database."""
+        try:
+            logger.info(f"Export request received. Data keys: {list(request.data.keys())}")
+            
+            # Get data from request
+            file_data = request.data.get('file_data')  # Base64 encoded file data
+            level = request.data.get('level', 'SURFACE')
+            observation_time_str = request.data.get('observation_time')
+            map_type = request.data.get('format', 'PDF').upper()  # PDF, PNG, JPEG
+            
+            logger.info(f"Format: {map_type}, Level: {level}, Observation time: {observation_time_str}")
+            logger.info(f"File data length: {len(file_data) if file_data else 0}")
+            
+            # Validate format
+            if map_type not in ['PDF', 'PNG', 'JPEG']:
+                logger.error(f"Invalid format: {map_type}")
+                return Response(
+                    {"error": "Format must be PDF, PNG, or JPEG"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not file_data:
+                logger.error("No file data received")
+                return Response(
+                    {"error": "File data is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Parse observation time
+            observation_time = None
+            if observation_time_str:
+                try:
+                    observation_time = datetime.fromisoformat(observation_time_str.replace('Z', '+00:00'))
+                except ValueError as e:
+                    logger.error(f"Invalid observation_time format: {observation_time_str}, {e}")
+                    return Response(
+                        {"error": "Invalid observation_time format"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Decode base64 file data
+            try:
+                logger.info(f"File data starts with: {file_data[:50] if file_data else 'None'}")
+                
+                # Remove data URL prefix based on format
+                if map_type == 'PDF' and file_data.startswith('data:application/pdf;base64,'):
+                    file_data = file_data.replace('data:application/pdf;base64,', '')
+                    logger.info("Removed PDF data URL prefix")
+                elif map_type == 'PNG' and file_data.startswith('data:image/png;base64,'):
+                    file_data = file_data.replace('data:image/png;base64,', '')
+                    logger.info("Removed PNG data URL prefix")
+                elif map_type == 'JPEG' and file_data.startswith('data:image/jpeg;base64,'):
+                    file_data = file_data.replace('data:image/jpeg;base64,', '')
+                    logger.info("Removed JPEG data URL prefix")
+                
+                file_bytes = base64.b64decode(file_data)
+                logger.info(f"Successfully decoded {map_type}, size: {len(file_bytes)} bytes")
+                
+                # Validate file headers
+                if map_type == 'PDF' and not file_bytes.startswith(b'%PDF-'):
+                    logger.error(f"Invalid PDF header. First 10 bytes: {file_bytes[:10]}")
+                    return Response(
+                        {"error": "Invalid PDF file format"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                elif map_type == 'PNG' and not file_bytes.startswith(b'\x89PNG\r\n\x1a\n'):
+                    logger.error(f"Invalid PNG header. First 10 bytes: {file_bytes[:10]}")
+                    return Response(
+                        {"error": "Invalid PNG file format"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                elif map_type == 'JPEG' and not file_bytes.startswith(b'\xff\xd8\xff'):
+                    logger.error(f"Invalid JPEG header. First 10 bytes: {file_bytes[:10]}")
+                    return Response(
+                        {"error": "Invalid JPEG file format"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                    
+            except Exception as e:
+                logger.error(f"Error decoding {map_type} data: {e}")
+                return Response(
+                    {"error": f"Invalid {map_type} data"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Generate filename
+            timestamp = observation_time.strftime('%Y%m%d_%H%M%S') if observation_time else 'latest'
+            file_extension = map_type.lower()
+            if file_extension == 'jpeg':
+                file_extension = 'jpg'  # Use .jpg extension for JPEG files
+            filename = f"weather_map_{level}_{timestamp}_{uuid.uuid4().hex[:8]}.{file_extension}"
+            logger.info(f"Generated filename: {filename}")
+            
+            # Create ContentFile from file bytes
+            export_file = ContentFile(file_bytes, name=filename)
+            logger.info(f"Created ContentFile: {export_file}")
+            
+            # Create ExportedMap instance
+            logger.info("Creating ExportedMap instance...")
+            exported_map = ExportedMap.objects.create(
+                file_name=filename,
+                file_path=export_file,
+                map_type=map_type,
+                level=level,
+                observation_time=observation_time
+            )
+            logger.info(f"Successfully created ExportedMap with ID: {exported_map.id}")
+            
+            # Serialize and return the created object
+            serializer = ExportedMapSerializer(exported_map)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            logger.error(f"Error saving PDF: {e}", exc_info=True)
+            return Response(
+                {"error": "Failed to save PDF"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ExportListView(APIView):
+    """List all saved exports (PDF, PNG, JPEG)."""
+    
+    def get(self, request):
+        """Return list of all saved exports."""
+        try:
+            # Get all export types (PDF, PNG, JPEG)
+            export_formats = request.query_params.get('formats', 'PDF,PNG,JPEG').upper().split(',')
+            valid_formats = [fmt.strip() for fmt in export_formats if fmt.strip() in ['PDF', 'PNG', 'JPEG']]
+            
+            if not valid_formats:
+                valid_formats = ['PDF', 'PNG', 'JPEG']  # Default to all formats
+            
+            exports = ExportedMap.objects.filter(map_type__in=valid_formats).order_by('-created_at')
+            
+            # Apply optional filters
+            level = request.query_params.get('level')
+            if level:
+                exports = exports.filter(level=level)
+            
+            observation_time = request.query_params.get('observation_time')
+            if observation_time:
+                try:
+                    observation_time = datetime.fromisoformat(observation_time.replace('Z', '+00:00'))
+                    exports = exports.filter(observation_time=observation_time)
+                except ValueError:
+                    pass  # Ignore invalid time format
+            
+            serializer = ExportedMapSerializer(exports, many=True)
+            return Response(serializer.data)
+            
+        except Exception as e:
+            logger.error(f"Error listing exports: {e}", exc_info=True)
+            return Response(
+                {"error": "Failed to list exports"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ExportDownloadView(APIView):
+    """Download individual export files (PDF, PNG, JPEG)."""
+    
+    def get(self, request, export_id):
+        """Download a specific export file."""
+        try:
+            # Get the export (any format)
+            export = ExportedMap.objects.get(id=export_id)
+            
+            # Check if file exists
+            if not export.file_path or not os.path.exists(export.file_path.path):
+                raise Http404(f"{export.map_type} file not found")
+            
+            # Read file content
+            with open(export.file_path.path, 'rb') as export_file:
+                file_content = export_file.read()
+            
+            # Determine content type based on format
+            content_type_map = {
+                'PDF': 'application/pdf',
+                'PNG': 'image/png',
+                'JPEG': 'image/jpeg'
+            }
+            content_type = content_type_map.get(export.map_type, 'application/octet-stream')
+            
+            # Return file response
+            response = HttpResponse(file_content, content_type=content_type)
+            response['Content-Disposition'] = f'attachment; filename="{export.file_name}"'
+            return response
+            
+        except ExportedMap.DoesNotExist:
+            raise Http404("Export file not found")
+        except Exception as e:
+            logger.error(f"Error downloading export {export_id}: {e}", exc_info=True)
+            return Response(
+                {"error": "Failed to download export file"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

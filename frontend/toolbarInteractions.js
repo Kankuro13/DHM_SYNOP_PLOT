@@ -221,4 +221,199 @@ export function setupToolbarInteractions(map) {
       showWarning('Nothing to redo.', true);
     }
   });
+
+  // Export Container functionality
+  document.querySelector('.export-container')?.addEventListener('click', () => {
+    openExportDrawer();
+  });
+
+  document.querySelector('#export-drawer-close')?.addEventListener('click', () => {
+    closeExportDrawer();
+  });
+  
+  // Keep backward compatibility for PDF container
+  document.querySelector('.pdf-container')?.addEventListener('click', () => {
+    openExportDrawer();
+  });
+
+  document.querySelector('#pdf-drawer-close')?.addEventListener('click', () => {
+    closeExportDrawer();
+  });
 }
+
+/**
+ * Open export drawer and load export list
+ */
+function openExportDrawer() {
+  const drawer = document.getElementById('export-drawer') || document.getElementById('pdf-drawer');
+  if (drawer) {
+    drawer.style.display = 'flex';
+    loadExportList();
+  }
+}
+
+/**
+ * Close export drawer
+ */
+function closeExportDrawer() {
+  const drawer = document.getElementById('export-drawer') || document.getElementById('pdf-drawer');
+  if (drawer) {
+    drawer.style.display = 'none';
+  }
+}
+
+// Keep backward compatibility functions
+function openPDFDrawer() { openExportDrawer(); }
+function closePDFDrawer() { closeExportDrawer(); }
+
+/**
+ * Load export list from API
+ */
+async function loadExportList() {
+  const exportListElement = document.getElementById('export-list') || document.getElementById('pdf-list');
+  if (!exportListElement) return;
+
+  try {
+    exportListElement.innerHTML = '<div class="export-loading">Loading exports...</div>';
+    
+    const normalizedApiBaseUrl = config.apiBaseUrl.endsWith('/') ? config.apiBaseUrl : `${config.apiBaseUrl}/`;
+    const response = await fetch(`${normalizedApiBaseUrl}api/export-list/`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to load exports');
+    }
+    
+    const exports = await response.json();
+    
+    if (exports.length === 0) {
+      exportListElement.innerHTML = '<div class="export-loading">No exports found</div>';
+      return;
+    }
+    
+    // Create export list items
+    exportListElement.innerHTML = '';
+    exports.forEach(exportItem => {
+      const exportItemElement = createExportListItem(exportItem);
+      exportListElement.appendChild(exportItemElement);
+    });
+    
+  } catch (error) {
+    console.error('Error loading export list:', error);
+    exportListElement.innerHTML = '<div class="export-loading">Failed to load exports</div>';
+    showWarning('Failed to load export list.', true);
+  }
+}
+
+// Keep backward compatibility
+function loadPDFList() { loadExportList(); }
+
+/**
+ * Create export list item element with format indicator
+ * @param {Object} exportData - Export data from API
+ * @returns {HTMLElement} Export item element
+ */
+function createExportListItem(exportData) {
+  const item = document.createElement('div');
+  item.className = 'export-item';
+  item.dataset.exportId = exportData.id;
+  
+  const name = document.createElement('div');
+  name.className = 'export-item-name';
+  
+  // Create format badge
+  const formatBadge = document.createElement('span');
+  formatBadge.className = `export-item-format ${exportData.map_type.toLowerCase()}`;
+  formatBadge.textContent = exportData.map_type;
+  
+  // Create filename text
+  const filenameText = document.createElement('span');
+  filenameText.textContent = exportData.file_name || 'Unnamed Export';
+  
+  name.appendChild(formatBadge);
+  name.appendChild(filenameText);
+  
+  const meta = document.createElement('div');
+  meta.className = 'export-item-meta';
+  const createdDate = new Date(exportData.created_at).toLocaleString();
+  const level = exportData.level || 'Unknown';
+  meta.textContent = `${level} • ${createdDate}`;
+  
+  item.appendChild(name);
+  item.appendChild(meta);
+  
+  // Click handler for export preview
+  item.addEventListener('click', () => {
+    selectExportItem(item);
+    previewExport(exportData);
+  });
+  
+  return item;
+}
+
+// Keep backward compatibility
+function createPDFListItem(pdf) {
+  return createExportListItem(pdf);
+}
+
+/**
+ * Select export item and update UI
+ * @param {HTMLElement} selectedItem - The selected export item
+ */
+function selectExportItem(selectedItem) {
+  // Remove previous selection
+  document.querySelectorAll('.export-item.selected, .pdf-item.selected').forEach(item => {
+    item.classList.remove('selected');
+  });
+  
+  // Add selection to current item
+  selectedItem.classList.add('selected');
+}
+
+/**
+ * Preview export file in the preview pane
+ * @param {Object} exportData - Export data from API
+ */
+function previewExport(exportData) {
+  const previewFrame = document.getElementById('export-preview-frame') || document.getElementById('pdf-preview-frame');
+  const placeholder = document.querySelector('.export-preview-placeholder') || document.querySelector('.pdf-preview-placeholder');
+  
+  if (previewFrame && placeholder) {
+    try {
+      const normalizedApiBaseUrl = config.apiBaseUrl.endsWith('/') ? config.apiBaseUrl : `${config.apiBaseUrl}/`;
+      const exportUrl = `${normalizedApiBaseUrl}api/export-download/${exportData.id}/`;
+      
+      // For images, we can preview directly. For PDFs, use iframe
+      if (exportData.map_type === 'PDF') {
+        previewFrame.src = exportUrl;
+        previewFrame.style.display = 'block';
+        placeholder.style.display = 'none';
+      } else {
+        // For PNG/JPEG, create an img element inside the preview area
+        const previewContainer = previewFrame.parentElement;
+        let imgElement = previewContainer.querySelector('.export-image-preview');
+        
+        if (!imgElement) {
+          imgElement = document.createElement('img');
+          imgElement.className = 'export-image-preview';
+          imgElement.style.maxWidth = '100%';
+          imgElement.style.maxHeight = '100%';
+          imgElement.style.objectFit = 'contain';
+          previewContainer.appendChild(imgElement);
+        }
+        
+        imgElement.src = exportUrl;
+        imgElement.style.display = 'block';
+        previewFrame.style.display = 'none';
+        placeholder.style.display = 'none';
+      }
+      
+    } catch (error) {
+      console.error('Error previewing export:', error);
+      showWarning('Failed to preview export.', true);
+    }
+  }
+}
+
+// Keep backward compatibility functions
+function selectPDFItem(selectedItem) { selectExportItem(selectedItem); }
+function previewPDF(pdf) { previewExport(pdf); }
