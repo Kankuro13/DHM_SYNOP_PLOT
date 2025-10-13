@@ -348,14 +348,26 @@ function createExportListItem(exportData) {
   // Create delete button
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'export-item-delete';
-  deleteBtn.innerHTML = '×';
+  deleteBtn.innerHTML = 'Delete';
   deleteBtn.title = 'Delete export';
   deleteBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     deleteExport(exportData.id);
   });
   
+  // Create view button
+  const viewBtn = document.createElement('button');
+  viewBtn.className = 'export-item-view';
+  viewBtn.innerHTML = 'View';
+  viewBtn.title = 'View export';
+  viewBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showLightbox(exportData);
+  });
+  
   item.appendChild(itemContent);
+  // append view then delete for clarity
+  item.appendChild(viewBtn);
   item.appendChild(deleteBtn);
   
   // Click handler for export preview in lightbox
