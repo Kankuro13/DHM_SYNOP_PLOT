@@ -6,6 +6,7 @@ from .views import (
     ObservationTimesView,GridDataViewSet,
     UpperAirWeatherStationViewSet,UpperAirSynopReportViewSet,UpperAirIsobarViewSet,UpperAirIsothermViewSet,UpperAirPressureCenterViewSet,AvailableLevelsView,UpperAirObservationTimesView,
     ExportFileView, ExportListView, ExportDownloadView
+    , ExportDelete
 )
 
 router = DefaultRouter()
@@ -30,6 +31,6 @@ urlpatterns = [
     path('available-levels/', AvailableLevelsView.as_view(), name='available-levels'),
     path('export-file/', ExportFileView.as_view(), name='export-file'),
     path('export-list/', ExportListView.as_view(), name='export-list'),
+    path('export-delete/<int:export_id>/', ExportDelete.as_view(), name='export-delete'),
     path('export-download/<int:export_id>/', ExportDownloadView.as_view(), name='export-download'),
-
 ]

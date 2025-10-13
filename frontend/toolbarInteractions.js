@@ -15,6 +15,7 @@ import {transformExtent} from 'ol/proj';
 
 const exportExtent = transformExtent([50, 0, 100, 40], 'EPSG:4326', 'EPSG:3857');
 console.log('Calling exportMap with extent:', exportExtent);
+
 export function setupToolbarInteractions(map) {
   const selectInteraction = new Select({
     layers: [editLayer],
@@ -308,7 +309,7 @@ async function loadExportList() {
 function loadPDFList() { loadExportList(); }
 
 /**
- * Create export list item element with format indicator
+ * Create export list item element with format indicator and delete button
  * @param {Object} exportData - Export data from API
  * @returns {HTMLElement} Export item element
  */
@@ -316,6 +317,9 @@ function createExportListItem(exportData) {
   const item = document.createElement('div');
   item.className = 'export-item';
   item.dataset.exportId = exportData.id;
+  
+  const itemContent = document.createElement('div');
+  itemContent.className = 'export-item-content';
   
   const name = document.createElement('div');
   name.className = 'export-item-name';
@@ -338,13 +342,26 @@ function createExportListItem(exportData) {
   const level = exportData.level || 'Unknown';
   meta.textContent = `${level} • ${createdDate}`;
   
-  item.appendChild(name);
-  item.appendChild(meta);
+  itemContent.appendChild(name);
+  itemContent.appendChild(meta);
   
-  // Click handler for export preview
-  item.addEventListener('click', () => {
+  // Create delete button
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'export-item-delete';
+  deleteBtn.innerHTML = '×';
+  deleteBtn.title = 'Delete export';
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteExport(exportData.id);
+  });
+  
+  item.appendChild(itemContent);
+  item.appendChild(deleteBtn);
+  
+  // Click handler for export preview in lightbox
+  itemContent.addEventListener('click', () => {
     selectExportItem(item);
-    previewExport(exportData);
+    showLightbox(exportData);
   });
   
   return item;
@@ -411,6 +428,114 @@ function previewExport(exportData) {
       console.error('Error previewing export:', error);
       showWarning('Failed to preview export.', true);
     }
+  }
+}
+
+/**
+ * Show export in lightbox
+ * @param {Object} exportData - Export data from API
+ */
+function showLightbox(exportData) {
+  const normalizedApiBaseUrl = config.apiBaseUrl.endsWith('/') ? config.apiBaseUrl : `${config.apiBaseUrl}/`;
+  const exportUrl = `${normalizedApiBaseUrl}api/export-download/${exportData.id}/`;
+  
+  // Create lightbox if it doesn't exist
+  let lightbox = document.getElementById('export-lightbox');
+  if (!lightbox) {
+    lightbox = document.createElement('div');
+    lightbox.id = 'export-lightbox';
+    lightbox.className = 'export-lightbox';
+    lightbox.innerHTML = `
+      <div class="lightbox-overlay"></div>
+      <div class="lightbox-content">
+        <button class="lightbox-close">×</button>
+        <div class="lightbox-body">
+          <img class="lightbox-image" style="display: none;" />
+          <iframe class="lightbox-iframe" style="display: none;"></iframe>
+        </div>
+        <div class="lightbox-info">
+          <span class="lightbox-filename"></span>
+          <a class="lightbox-download" download>Download</a>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(lightbox);
+    
+    // Close handlers
+    lightbox.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
+    lightbox.querySelector('.lightbox-overlay').addEventListener('click', closeLightbox);
+    
+    // ESC key handler
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && lightbox.style.display === 'flex') {
+        closeLightbox();
+      }
+    });
+  }
+  
+  const lightboxImage = lightbox.querySelector('.lightbox-image');
+  const lightboxIframe = lightbox.querySelector('.lightbox-iframe');
+  const lightboxFilename = lightbox.querySelector('.lightbox-filename');
+  const lightboxDownload = lightbox.querySelector('.lightbox-download');
+  
+  // Update lightbox content
+  lightboxFilename.textContent = exportData.file_name || 'Unnamed Export';
+  lightboxDownload.href = exportUrl;
+  lightboxDownload.download = exportData.file_name || 'export';
+  
+  if (exportData.map_type === 'PDF') {
+    lightboxImage.style.display = 'none';
+    lightboxIframe.src = exportUrl;
+    lightboxIframe.style.display = 'block';
+  } else {
+    lightboxIframe.style.display = 'none';
+    lightboxImage.src = exportUrl;
+    lightboxImage.style.display = 'block';
+  }
+  
+  // Show lightbox
+  lightbox.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+/**
+ * Close lightbox
+ */
+function closeLightbox() {
+  const lightbox = document.getElementById('export-lightbox');
+  if (lightbox) {
+    lightbox.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+}
+
+/**
+ * Delete export
+ * @param {number} exportId - Export ID
+ */
+async function deleteExport(exportId) {
+  if (!confirm('Are you sure you want to delete this export?')) {
+    return;
+  }
+  
+  try {
+    showSpinner();
+    const normalizedApiBaseUrl = config.apiBaseUrl.endsWith('/') ? config.apiBaseUrl : `${config.apiBaseUrl}/`;
+    const response = await fetch(`${normalizedApiBaseUrl}api/export-delete/${exportId}/`, {
+      method: 'DELETE'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to delete export');
+    }
+    
+    showWarning('Export deleted successfully.', false);
+    loadExportList(); // Reload the list
+  } catch (error) {
+    console.error('Error deleting export:', error);
+    showWarning('Failed to delete export.', true);
+  } finally {
+    hideSpinner();
   }
 }
 

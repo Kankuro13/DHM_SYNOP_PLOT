@@ -6,8 +6,7 @@
   <link rel="icon" type="image/x-icon" href="res/nepallogo.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DHM Weather Map</title>
-  <script src="res/js/create-js.js"></script>
-  <script src="res/js/jquery-1.11.0.min.js"></script>
+
   <style>
     body {
       margin: 0;
@@ -218,7 +217,7 @@
     }
 
     .export-list {
-      width: 40%;
+      width: 100%;
       padding: 15px;
       border-right: 1px solid #ccc;
       overflow-y: auto;
@@ -314,17 +313,49 @@
     }
 
     /* Keep backward compatibility for PDF classes */
-    .pdf-drawer { @extend .export-drawer; }
-    .pdf-drawer-header { @extend .export-drawer-header; }
-    .pdf-drawer-content { @extend .export-drawer-content; }
-    .pdf-list { @extend .export-list; }
-    .pdf-item { @extend .export-item; }
-    .pdf-item-name { @extend .export-item-name; }
-    .pdf-item-meta { @extend .export-item-meta; }
-    .pdf-preview { @extend .export-preview; }
-    .pdf-preview-placeholder { @extend .export-preview-placeholder; }
-    #pdf-preview-frame { @extend #export-preview-frame; }
-    .pdf-loading { @extend .export-loading; }
+    .pdf-drawer {
+      @extend .export-drawer;
+    }
+
+    .pdf-drawer-header {
+      @extend .export-drawer-header;
+    }
+
+    .pdf-drawer-content {
+      @extend .export-drawer-content;
+    }
+
+    .pdf-list {
+      @extend .export-list;
+    }
+
+    .pdf-item {
+      @extend .export-item;
+    }
+
+    .pdf-item-name {
+      @extend .export-item-name;
+    }
+
+    .pdf-item-meta {
+      @extend .export-item-meta;
+    }
+
+    .pdf-preview {
+      @extend .export-preview;
+    }
+
+    .pdf-preview-placeholder {
+      @extend .export-preview-placeholder;
+    }
+
+    #pdf-preview-frame {
+      @extend #export-preview-frame;
+    }
+
+    .pdf-loading {
+      @extend .export-loading;
+    }
   </style>
 </head>
 
@@ -364,10 +395,9 @@
           <div class="item edit-line" title="Draw Line"><img src="res/iocns/vector-37.svg" alt="Edit Line"></div>
           <div class="item edit-polygon" title="Draw Polygon"><img src="res/iocns/vector-38.svg" alt="Edit Polygon">
           </div>
-          <div class="item edit-delete" title="Delete "><img src="res/iocns/delete-1-svgrepo-com.svg"
-              alt="Edit Delete"></div>
-          <div class="item edit-eraser" title="Eraser"><img src="res/iocns/eraser.svg"
-              alt="Eraser"></div>
+          <div class="item edit-delete" title="Delete "><img src="res/iocns/delete-1-svgrepo-com.svg" alt="Edit Delete">
+          </div>
+          <div class="item edit-eraser" title="Eraser"><img src="res/iocns/eraser.svg" alt="Eraser"></div>
           <div class="item edit-undo" title="Undo Edit"><img src="res/iocns/undo-svgrepo-com.svg" alt="Edit Undo"></div>
           <div class="item edit-redo" title="Redo Edit"><img src="res/iocns/redo-alt-solid-svgrepo-com.svg"
               alt="Edit Redo"></div>
@@ -382,7 +412,8 @@
       <div class="toolbar-child">
         <!-- Export Container Button -->
         <div class="toolbar-items">
-          <div class="item export-container" title="Export Container"><img src="res/iocns/vector-29.svg" alt="Export Container" style="transform: rotate(0deg);"></div>
+          <div class="item export-container" title="Export Container"><img src="res/iocns/vector-29.svg"
+              alt="Export Container" style="transform: rotate(0deg);"></div>
         </div>
       </div>
     </div>
@@ -431,21 +462,6 @@
         </div>
       </div>
     </div>
-
-    <!-- PDF Drawer Panel -->
-    <div id="pdf-drawer" class="pdf-drawer" style="display: none;">
-      <div class="pdf-drawer-header">
-        <h3>Saved PDFs</h3>
-        <button id="pdf-drawer-close" class="btn">Close</button>
-      </div>
-      <div id="pdf-list" class="pdf-list">
-        <!-- Filled dynamically -->
-      </div>
-      <div class="pdf-preview">
-        <iframe id="pdf-preview-frame" title="PDF Preview" style="width: 100%; height: 100%; border: none;"></iframe>
-      </div>
-    </div>
-
     <!-- Export Drawer Panel -->
     <div id="export-drawer" class="export-drawer" style="display: none;">
       <div class="export-drawer-header">
@@ -456,16 +472,17 @@
         <div id="export-list" class="export-list">
           <div class="export-loading">Loading exports...</div>
         </div>
-        <div class="export-preview">
+        <!-- <div class="export-preview">
           <div class="export-preview-placeholder">Select an export to preview</div>
           <iframe id="export-preview-frame" title="Export Preview" style="display: none;"></iframe>
-        </div>
+        </div> -->
       </div>
     </div>
 
   </div>
 
-
+  <script src="res/js/create-js.js"></script>
+  <script src="res/js/jquery-1.11.0.min.js"></script>
   <script src="env-config.js"></script>
   <script>
 

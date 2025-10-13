@@ -645,6 +645,32 @@ class ExportListView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+class ExportDelete(APIView):
+    """Delete an exported map and its file from storage and database."""
+
+    def delete(self, request, export_id):
+        try:
+            export = ExportedMap.objects.get(id=export_id)
+
+            # Delete file from storage if exists
+            try:
+                if export.file_path:
+                    storage = export.file_path.storage
+                    file_name = export.file_path.name
+                    if storage.exists(file_name):
+                        storage.delete(file_name)
+            except Exception as e:
+                logger.warning(f"Failed to delete file for export {export_id}: {e}")
+
+            # Delete DB record
+            export.delete()
+
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except ExportedMap.DoesNotExist:
+            return Response({"error": "Export not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error deleting export {export_id}: {e}", exc_info=True)
+            return Response({"error": "Failed to delete export"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ExportDownloadView(APIView):
     """Download individual export files (PDF, PNG, JPEG)."""
