@@ -130,8 +130,29 @@ def fetch_upper_air_data(self):
     #     '41923': UpperAirWeatherStation.objects.get(station_id="41923")
     # }
 
-    # Use fixed observation time for testing
-    observation_time = make_aware(datetime(2025, 7, 7, 0, 0, 0), timezone=dt_timezone.utc)
+    # Use current UTC time for observation (00Z or 12Z)
+    from datetime import datetime, timezone as dt_timezone
+    now_utc = datetime.now(dt_timezone.utc)
+    
+    # Upper air soundings are typically at 00Z and 12Z
+    # Round to the nearest valid observation time
+    hour = now_utc.hour
+    if hour < 6:
+        obs_hour = 0
+    elif hour < 18:
+        obs_hour = 12
+    else:
+        obs_hour = 0
+        # If it's past 18Z, we want today's 12Z or tomorrow's 00Z
+        # For simplicity, use today's 12Z
+        from datetime import timedelta
+        if hour >= 18:
+            obs_hour = 12
+    
+    observation_time = now_utc.replace(hour=obs_hour, minute=0, second=0, microsecond=0)
+    
+    logger.info(f"Fetching upper air data for observation time: {observation_time.isoformat()}")
+    
     upper_air_url = "https://www.ogimet.com/display_sond.php"
     total_rows = 0
 

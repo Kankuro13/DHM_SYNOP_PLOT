@@ -433,7 +433,7 @@ class AvailableLevelsView(APIView):
         try:
             # Upper-air levels
             upper_levels = UpperAirSynopReport.objects.values('level').annotate(count=Count('id'))
-            print(upper_levels)
+            logger.info(f"Upper air levels fetched: {list(upper_levels)}")
 
             # Combine both sources
             combined_levels = {}
@@ -442,8 +442,12 @@ class AvailableLevelsView(APIView):
 
             # Prepare response
             levels = [{'level': level, 'count': count} for level, count in combined_levels.items()]
-            levels.sort(key=lambda x: x['level'])  # Optional sorting
+            
+            # Sort levels in a logical order (200, 500, 700, 850, etc.)
+            level_order = {'200HPA': 1, '500HPA': 2, '700HPA': 3, '850HPA': 4}
+            levels.sort(key=lambda x: level_order.get(x['level'], 999))
 
+            logger.info(f"Returning {len(levels)} pressure levels")
             return Response(levels)
         except Exception as e:
             logger.error(f"Error fetching available levels: {e}", exc_info=True)

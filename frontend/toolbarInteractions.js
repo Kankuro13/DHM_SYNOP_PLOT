@@ -100,6 +100,33 @@ export function setupToolbarInteractions(map) {
     exportMap(map, 'pdf', 'weather_map',exportExtent);
   });
 
+  // Upper Air Map Export Buttons
+  document.querySelector('.export-upper-jpeg')?.addEventListener('click', () => {
+    exportMap(map, 'jpeg', 'upper_air_map', exportExtent);
+  });
+
+  document.querySelector('.export-upper-png')?.addEventListener('click', () => {
+    exportMap(map, 'png', 'upper_air_map', exportExtent);
+  });
+
+  document.querySelector('.export-upper-pdf')?.addEventListener('click', () => {
+    exportMap(map, 'pdf', 'upper_air_map', exportExtent);
+  });
+
+  document.querySelector('.export-upper-area')?.addEventListener('click', () => {
+    showWarning('Draw a rectangle to select the export area.', false);
+    addDragBoxExportInteraction(map, (extent) => {
+      const format = prompt('Select export format (jpeg, png, pdf, clipboard):', 'png').toLowerCase();
+      if (['jpeg', 'png', 'pdf'].includes(format)) {
+        exportMap(map, format, 'upper_air_map_area', extent);
+      } else if (format === 'clipboard') {
+        copyMapToClipboard(map, extent);
+      } else {
+        showWarning('Invalid format. Use jpeg, png, pdf, or clipboard.', true);
+      }
+    });
+  });
+
   document.querySelector('.copy-clipboard')?.addEventListener('click', () => {
     copyMapToClipboard(map);
   });
@@ -509,6 +536,81 @@ function showLightbox(exportData) {
     `;
     document.body.appendChild(lightbox);
     
+    // Inline styles to ensure proper centering and scaling without relying on external CSS
+    // Container covers viewport and centers content
+    lightbox.style.position = 'fixed';
+    lightbox.style.inset = '0';
+    lightbox.style.display = 'none';
+    lightbox.style.alignItems = 'center';
+    lightbox.style.justifyContent = 'center';
+    lightbox.style.zIndex = '9999';
+
+    // Overlay dims background
+    const overlay = lightbox.querySelector('.lightbox-overlay');
+    overlay.style.position = 'absolute';
+    overlay.style.inset = '0';
+    overlay.style.background = 'rgba(0,0,0,0.6)';
+
+    // Modal content area
+    const content = lightbox.querySelector('.lightbox-content');
+    content.style.position = 'relative';
+    content.style.background = '#fff';
+    content.style.borderRadius = '8px';
+    content.style.overflow = 'hidden';
+    content.style.maxWidth = '95vw';
+    content.style.maxHeight = '90vh';
+    content.style.width = '90vw';
+    content.style.display = 'flex';
+    content.style.flexDirection = 'column';
+    content.style.boxShadow = '0 10px 30px rgba(0,0,0,0.3)';
+
+    // Close button
+    const closeBtn = content.querySelector('.lightbox-close');
+    closeBtn.style.position = 'absolute';
+    closeBtn.style.top = '8px';
+    closeBtn.style.right = '8px';
+    closeBtn.style.background = '#ef4444';
+    closeBtn.style.color = '#fff';
+    closeBtn.style.border = 'none';
+    closeBtn.style.width = '32px';
+    closeBtn.style.height = '32px';
+    closeBtn.style.borderRadius = '16px';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.fontSize = '18px';
+    closeBtn.style.lineHeight = '32px';
+
+    // Body centers preview
+    const body = content.querySelector('.lightbox-body');
+    body.style.flex = '1 1 auto';
+    body.style.display = 'flex';
+    body.style.alignItems = 'center';
+    body.style.justifyContent = 'center';
+    body.style.background = '#fff';
+    body.style.minHeight = '60vh';
+    body.style.padding = '10px';
+
+    // Footer
+    const info = content.querySelector('.lightbox-info');
+    info.style.display = 'flex';
+    info.style.alignItems = 'center';
+    info.style.justifyContent = 'space-between';
+    info.style.gap = '12px';
+    info.style.padding = '10px 12px';
+    info.style.borderTop = '1px solid #eee';
+
+    // Preview elements scale to fit
+    const imgEl = content.querySelector('.lightbox-image');
+    imgEl.style.maxWidth = '100%';
+    imgEl.style.maxHeight = '80vh';
+    imgEl.style.objectFit = 'contain';
+    imgEl.style.display = 'none';
+
+    const iframeEl = content.querySelector('.lightbox-iframe');
+    iframeEl.style.width = '100%';
+    iframeEl.style.height = '80vh';
+    iframeEl.style.border = 'none';
+    iframeEl.style.display = 'none';
+
     // Close handlers
     lightbox.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
     lightbox.querySelector('.lightbox-overlay').addEventListener('click', closeLightbox);

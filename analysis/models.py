@@ -127,15 +127,16 @@ class PressureCenter(models.Model):
 class ExportedMap(models.Model):
     file_name = models.CharField(max_length=255)
     file_path = models.FileField(upload_to='exports/')
-    map_type = models.CharField(max_length=50, choices=[('PNG', 'PNG'), ('SVG', 'SVG'), ('PDF', 'PDF')])
+    map_type = models.CharField(max_length=50, choices=[('PNG', 'PNG'), ('SVG', 'SVG'), ('PDF', 'PDF'), ('JPEG', 'JPEG')])
     level = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=[
             ('SURFACE', 'Surface'),
             ('850HPA', '850 hPa'),
             ('700HPA', '700 hPa'),
             ('500HPA', '500 hPa'),
             ('200HPA', '200 hPa'),
+            ('UPPERAIRMAP', 'Upper Air Map'),
         ]
     )
     observation_time = models.DateTimeField(null=True)

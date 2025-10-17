@@ -170,11 +170,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'analysis.tasks.fetch_meteo_data',
         'schedule': 10800.0,  # Every 3 hours (3 * 60 * 60 seconds)
     },
-    # Upper air data task is disabled until fully implemented
-    # 'fetch_upper_air_data': {
-    #     'task': 'analysis.upperair_task.fetch_upper_air_data',
-    #     'schedule': 10800.0,  # Every 3 hours
-    # },
+    # Upper air data task enabled
+    'fetch_upper_air_data': {
+        'task': 'analysis.upperair_task.fetch_upper_air_data',
+        'schedule': 10800.0,  # Every 3 hours
+    },
 }
 
 METEO_STATION_BLOCKS = ['44', '42', '41']  # Configurable station blocks
