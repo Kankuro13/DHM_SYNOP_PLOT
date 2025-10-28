@@ -19,10 +19,13 @@ import {
 import { addStationsToMap } from './stations.js';
 import { synopObservation } from './synop.js';
 import { createPopup, setupToolbarInteractions } from './interactions.js';
-import { showSpinner, hideSpinner, showWarning, fetchWithRetry, debounce, getWeatherIcon, getCountryFlag, getPressureTrendClass, getPressureTrendSymbol } from './utils.js';
+import { showSpinner, hideSpinner, showWarning, hideWarning, fetchWithRetry, debounce, getWeatherIcon, getCountryFlag, getPressureTrendClass, getPressureTrendSymbol } from './utils.js';
 import Modify from 'ol/interaction/Modify.js';
 import Select from 'ol/interaction/Select.js';
 import { defaults as defaultInteractions } from 'ol/interaction/defaults.js';
+import { editSource } from './interactionLayers.js';
+import { clearEditInteractions } from './editInteractions.js';
+import { clearMeasureInteractions } from './measureInteractions.js';
 
 // Initialize Map
 const extent = transformExtent(extentLatLon, 'EPSG:4326', 'EPSG:3857');
@@ -140,7 +143,7 @@ function loadObservationTimes() {
         refreshLayers(select.value);
         updateLegendObservationTime(select.value);
       } else {
-        showWarning('No valid observation times available.', true);
+        showWarning('No valid observation times available.');
         updateLegendObservationTime('');
       }
 
@@ -160,7 +163,7 @@ function loadObservationTimes() {
     })
     .catch(error => {
       console.error('Error fetching observation times:', error);
-      showWarning('Failed to load observation times. Please try again.', true);
+      showWarning('Failed to load observation times. Please try again.');
       updateLegendObservationTime('');
     })
     .finally(() => hideSpinner());
@@ -172,12 +175,15 @@ function loadObservationTimes() {
  */
 async function refreshLayers(observationTime) {
   if (!observationTime) {
-    showWarning('No observation time selected. Please select a valid time.', true);
+    showWarning('No observation time selected. Please select a valid time.');
     hideSpinner();
     updateLegendObservationTime('');
     return;
   }
 
+  // Hide any existing warnings when starting to load new data
+  hideWarning();
+  
   showSpinner();
   try {
     // Clear existing layers
@@ -188,6 +194,21 @@ async function refreshLayers(observationTime) {
     pressureCenterLayers.getLayers().clear();
     gridLayers.getLayers().clear();
     weatherReports = [];
+
+    // Clear any drawn measurements or editable features from previous time
+    try {
+      clearMeasureInteractions(map);
+    } catch (err) {
+      console.warn('Failed to clear measure interactions:', err);
+    }
+    try {
+      // Remove any active edit interactions (draw/modify/eraser)
+      clearEditInteractions(map);
+      editSource.clear();
+      // Keep layer visibility as-is so user can draw immediately
+    } catch (err) {
+      console.warn('Failed to clear edit features or interactions:', err);
+    }
 
     // Normalize apiBaseUrl
   // Fetch and add stations
@@ -208,7 +229,7 @@ async function refreshLayers(observationTime) {
     if (stations.length > 0) {
       addStationsToMap(stations);
     } else {
-      showWarning('No weather stations available.', true);
+      showWarning('No weather stations available.');
     }
 
     // Fetch and add SYNOP reports
@@ -260,7 +281,7 @@ async function refreshLayers(observationTime) {
     if (weatherReports.length > 0) {
       synopObservation(weatherReports);
     } else {
-      showWarning('No weather reports available for the selected time.', true);
+      showWarning('No weather reports available for the selected time.');
     }
 
     const isobarStyleFunction = (feature) => {
@@ -302,7 +323,7 @@ async function refreshLayers(observationTime) {
       });
       isobarLayers.getLayers().push(isobarLayer);
     } else {
-      showWarning('No isobars available for the selected time. Check data or time range.', true);
+      showWarning('No isobars available for the selected time. Check data or time range.');
       console.warn('No isobar features found in response:', isobarData);
     }
 
@@ -330,7 +351,7 @@ async function refreshLayers(observationTime) {
       });
       isothermLayers.getLayers().push(isothermLayer);
     } else {
-      showWarning('No isotherms available for the selected time.', true);
+      showWarning('No isotherms available for the selected time.');
     }
 
     // Fetch and add pressure centers
@@ -368,11 +389,11 @@ async function refreshLayers(observationTime) {
       });
       pressureCenterLayers.getLayers().push(pressureLayer);
     } else {
-      showWarning('No pressure centers available for the selected time.', true);
+      showWarning('No pressure centers available for the selected time.');
     }
   } catch (error) {
     console.error('Error refreshing layers:', error);
-    showWarning('Failed to load map data for the selected time. Please try again.', true);
+    showWarning('Failed to load map data for the selected time. Please try again.');
   } finally {
     hideSpinner();
   }
@@ -494,7 +515,7 @@ map.on('click', function (event) {
         popupShown = true;
       } catch (error) {
         console.error('Error rendering popup content:', error);
-        showWarning('Failed to display station details.', true);
+        showWarning('Failed to display station details.');
       }
     }
   }, { hitTolerance: 5 });

@@ -7,32 +7,45 @@ export function hideSpinner() {
   document.getElementById('loading-spinner').style.display = 'none';
 }
 
+let warningTimeout = null;
+
 export function showWarning(message, persistent = false) {
   const warningPanel = document.getElementById('warning-panel');
+  
+  // Clear any existing warning timeout
+  if (warningTimeout) {
+    clearTimeout(warningTimeout);
+    warningTimeout = null;
+  }
+  
   if (persistent) {
     warningPanel.style.display = 'block';
     warningPanel.textContent = message;
   } else {
-    const warningDiv = document.createElement('div');
-    warningDiv.className = 'warning-panel';
-    warningDiv.textContent = message;
-    warningDiv.style.position = 'absolute';
-    warningDiv.style.top = '10px';
-    warningDiv.style.left = '50%';
-    warningDiv.style.transform = 'translateX(-50%)';
-    warningDiv.style.background = '#f8d7da';
-    warningDiv.style.color = '#721c24';
-    warningDiv.style.padding = '10px';
-    warningDiv.style.borderRadius = '5px';
-    document.getElementById('map').appendChild(warningDiv);
-    setTimeout(() => warningDiv.remove(), 5000);
+    warningPanel.style.display = 'block';
+    warningPanel.textContent = message;
+    
+    // Auto-hide after 3 seconds
+    warningTimeout = setTimeout(() => {
+      hideWarning();
+    }, 3000);
+  }
+}
+
+export function hideWarning() {
+  const warningPanel = document.getElementById('warning-panel');
+  warningPanel.style.display = 'none';
+  warningPanel.textContent = '';
+  
+  // Clear the timeout if it exists
+  if (warningTimeout) {
+    clearTimeout(warningTimeout);
+    warningTimeout = null;
   }
 }
 
 export function clearWarnings() {
-  const warningPanel = document.getElementById('warning-panel');
-  warningPanel.style.display = 'none';
-  warningPanel.textContent = '';
+  hideWarning();
 }
 
 export async function fetchWithRetry(url, retries = 3, delay = 1000) {

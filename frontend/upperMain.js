@@ -22,7 +22,7 @@ import { createPopup, setupToolbarInteractions } from './interactions.js';
 import { clearMeasureInteractions } from './measureInteractions.js';
 import { editSource, editLayer } from './interactionLayers.js';
 import { clearEditInteractions } from './editInteractions.js';
-import { showSpinner, hideSpinner, showWarning, fetchWithRetry, debounce, getWeatherIcon, getCountryFlag, getPressureTrendClass, getPressureTrendSymbol } from './utils.js';
+import { showSpinner, hideSpinner, showWarning, hideWarning, fetchWithRetry, debounce, getWeatherIcon, getCountryFlag, getPressureTrendClass, getPressureTrendSymbol } from './utils.js';
 import Modify from 'ol/interaction/Modify.js';
 import Select from 'ol/interaction/Select.js';
 import { defaults as defaultInteractions } from 'ol/interaction/defaults.js';
@@ -118,15 +118,28 @@ function updateLegendObservation(observationTime, level) {
 function loadObservationTimes(level = '850HPA') {
   showSpinner();
   const endpoint = getObservationTimesEndpoint(level);
+  const url = apiUrl(`api/${endpoint}/?level=${encodeURIComponent(level)}`);
+  
+  console.log(`Loading observation times for level: ${level}`);
+  console.log(`Endpoint: ${endpoint}`);
+  console.log(`Full URL: ${url}`);
 
-  fetch(apiUrl(`api/${endpoint}/?level=${encodeURIComponent(level)}`))
+  fetch(url)
     .then(res => {
+      console.log(`Response status: ${res.status} ${res.statusText}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       return res.json();
     })
     .then(times => {
+      console.log(`Received ${times.length} observation times:`, times);
+      
       const select = document.getElementById('observation-time');
-      select.innerHTML = '<option value="">Select Observation Time</option>';
+      
+      // Clone the select element to remove all existing event listeners
+      const newSelect = select.cloneNode(false); // Clone without children
+      select.parentNode.replaceChild(newSelect, select);
+      
+      newSelect.innerHTML = '<option value="">Select Observation Time</option>';
 
       const normalizedTimes = times.map(time => time.replace(/\+00:00Z$/, 'Z').replace(/Z$/, 'Z'));
       
@@ -140,7 +153,7 @@ function loadObservationTimes(level = '850HPA') {
         return hour % 3 === 0 && minutes === 0 && seconds === 0;
       }).sort((a, b) => new Date(b) - new Date(a));
 
-      // Helper function to format date with date and time
+      console.log(`Filtered to ${filteredTimes.length} times at 3-hour intervals:`, filteredTimes);
       function formatObservationTime(isoString) {
         const date = new Date(isoString);
         
@@ -158,21 +171,21 @@ function loadObservationTimes(level = '850HPA') {
       // Populate dropdown with formatted labels
       filteredTimes.forEach(time => {
         const label = formatObservationTime(time);
-        select.add(new Option(label, time));
+        newSelect.add(new Option(label, time));
       });
 
       console.log('Filtered observation times (last 3 days):', filteredTimes);
 
       if (filteredTimes.length > 0) {
-        select.value = filteredTimes[0];
-        refreshLayers(select.value, level);
-        updateLegendObservation(select.value, level);
+        newSelect.value = filteredTimes[0];
+        refreshLayers(newSelect.value, level);
+        updateLegendObservation(newSelect.value, level);
       } else {
-        showWarning('No valid observation times available.', true);
+        showWarning('No valid observation times available.');
         updateLegendObservation('', level);
       }
 
-      select.addEventListener('change', debounce((e) => {
+      newSelect.addEventListener('change', debounce((e) => {
         const selectedTime = e.target.value || filteredTimes[0] || '';
         refreshLayers(selectedTime, level);
         updateLegendObservation(selectedTime, level);
@@ -180,7 +193,7 @@ function loadObservationTimes(level = '850HPA') {
     })
     .catch(error => {
       console.error('Error fetching observation times:', error);
-      showWarning('Failed to load observation times.', true);
+      showWarning('Failed to load observation times.');
       updateLegendObservation('', level);
     })
     .finally(() => hideSpinner());
@@ -204,38 +217,46 @@ async function loadAvailableLevels() {
       return;
     }
 
+    // Clone the select element to remove all existing event listeners
+    const newLevelSelect = levelSelect.cloneNode(false);
+    levelSelect.parentNode.replaceChild(newLevelSelect, levelSelect);
+
     // Always reset with default option
-    levelSelect.innerHTML = '';
+    newLevelSelect.innerHTML = '';
     const defaultOption = document.createElement('option');
     defaultOption.value = '';
     defaultOption.textContent = 'Select Pressure Level';
-    levelSelect.appendChild(defaultOption);
+    newLevelSelect.appendChild(defaultOption);
 
     // Populate levels
     levels.forEach(levelObj => {
       const option = document.createElement('option');
       option.value = levelObj.level;
       option.textContent = formatLevel(levelObj.level);
-      levelSelect.appendChild(option);
+      newLevelSelect.appendChild(option);
     });
 
     if (levels.length > 0) {
       const defaultLevel = levels[0].level;
-      levelSelect.value = defaultLevel;
+      newLevelSelect.value = defaultLevel;
+      console.log(`Setting default pressure level: ${defaultLevel}`);
       loadObservationTimes(defaultLevel);
     } else {
-      showWarning('No available pressure levels.', true);
+      showWarning('No available pressure levels.');
     }
 
     // Listen for change
-    levelSelect.addEventListener('change', (e) => {
+    newLevelSelect.addEventListener('change', (e) => {
       const selectedLevel = e.target.value;
-      loadObservationTimes(selectedLevel);
+      if (selectedLevel) {
+        console.log(`Pressure level changed to: ${selectedLevel}`);
+        loadObservationTimes(selectedLevel);
+      }
     });
 
   } catch (error) {
     console.error('Error fetching available levels:', error);
-    showWarning('Failed to load pressure levels.', true);
+    showWarning('Failed to load pressure levels.');
   } finally {
     hideSpinner();
   }
@@ -247,8 +268,10 @@ async function loadAvailableLevels() {
  * @param {string} observationTime - ISO 8601 timestamp.
  */
 async function refreshLayers(observationTime, level = '850HPA') {
+  hideWarning(); // Clear any previous warnings
+  
   if (!observationTime) {
-    showWarning('No observation time selected. Please select a valid time.', true);
+    showWarning('No observation time selected. Please select a valid time.');
     hideSpinner();
     updateLegendObservationTime('');
     return;
@@ -287,7 +310,7 @@ async function refreshLayers(observationTime, level = '850HPA') {
     if (stations.length > 0) {
       addStationsToMap(stations);
     } else {
-      showWarning('No upper-air weather stations available.', true);
+      showWarning('No upper-air weather stations available.');
     }
 
     // Always fetch upper-air reports
@@ -325,7 +348,7 @@ async function refreshLayers(observationTime, level = '850HPA') {
     if (weatherReports.length > 0) {
       synopObservation(weatherReports);
     } else {
-      showWarning('No upper-air reports available for the selected time.', true);
+      showWarning('No upper-air reports available for the selected time.');
     }
     
     const isobarStyleFunction = (feature) => {
@@ -367,7 +390,7 @@ async function refreshLayers(observationTime, level = '850HPA') {
       });
       isobarLayers.getLayers().push(isobarLayer);
     } else {
-      showWarning('No isobars available for the selected time. Check data or time range.', true);
+      showWarning('No isobars available for the selected time. Check data or time range.');
       console.warn('No isobar features found in response:', isobarData);
     }
 
@@ -395,13 +418,13 @@ async function refreshLayers(observationTime, level = '850HPA') {
       });
       isothermLayers.getLayers().push(isothermLayer);
     } else {
-      showWarning('No isotherms available for the selected time.', true);
+      showWarning('No isotherms available for the selected time.');
     }
 
 
   } catch (error) {
     console.error('Error refreshing layers:', error);
-    showWarning('Failed to load upper-air map data. Please try again.', true);
+    showWarning('Failed to load upper-air map data. Please try again.');
   } finally {
     hideSpinner();
   }
@@ -504,7 +527,7 @@ map.on('click', function (event) {
         popupShown = true;
       } catch (error) {
         console.error('Error rendering popup content:', error);
-        showWarning('Failed to display station details.', true);
+        showWarning('Failed to display station details.');
       }
     }
   }, { hitTolerance: 5 });
@@ -514,5 +537,6 @@ map.on('click', function (event) {
 setupToolbarInteractions(map);
 
 // Initialize Application
-loadObservationTimes();
+// Don't call loadObservationTimes() here - it will be called by loadAvailableLevels()
+// after a pressure level is selected
 loadAvailableLevels();
