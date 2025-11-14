@@ -21,7 +21,7 @@ export const nepal = new TileLayer({
   visible: false,
   source: new TileWMS({
     url: config.geoserverUrl,
-    params: { 'LAYERS': '	DHM:province', 'TILED': true },
+    params: { 'LAYERS': 'DHM:province', 'TILED': true },
     serverType: 'geoserver',
     crossOrigin: 'anonymous',
   })
@@ -97,7 +97,7 @@ export const pakistan = new TileLayer({
 export const baseLayers = new LayerGroup({
   title: 'Base Layers',
   openInLayerSwitcher: true,
-  layers: [osmLayer, nepal, bhutan, indiaState, pakistan, bangladesh,srilanka, china]
+  layers: [osmLayer, nepal, bhutan, indiaState, pakistan, bangladesh, srilanka, china]
 });
 
 export const stationLayers = new LayerGroup({
