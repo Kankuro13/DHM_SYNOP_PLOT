@@ -1,11 +1,9 @@
-
-
 from django.http import HttpResponse, JsonResponse
 from django.views import View
 import requests
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(_name_)
 
 class GeoServerProxy(View):
     GEOSERVER_BASE_URL = "http://localhost:8080/geoserver"

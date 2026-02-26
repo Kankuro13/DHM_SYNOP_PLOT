@@ -35,4 +35,4 @@ urlpatterns = [
     path('export-delete/<int:export_id>/', ExportDelete.as_view(), name='export-delete'),
     path('export-download/<int:export_id>/', ExportDownloadView.as_view(), name='export-download'),
     path('geoserver-proxy/<path:wms_path>', GeoServerProxy.as_view(), name='geoserver-proxy'),
-]
+    ]
