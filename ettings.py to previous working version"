@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import environ
 from pathlib import Path
 import os
+GDAL_LIBRARY_PATH = os.path.join(os.environ['CONDA_PREFIX'], 'Library', 'bin', 'gdal.dll')
 
 env = environ.Env(
     # set casting, default value
@@ -21,16 +22,8 @@ env = environ.Env(
 BASE_DIR = Path(__file__).resolve().parent.parent
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
-CONDA_PREFIX = os.environ.get('CONDA_PREFIX')
-
-if CONDA_PREFIX:
-    if os.name == 'nt':
-        # Windows path
-        GDAL_LIBRARY_PATH = os.path.join(CONDA_PREFIX, 'Library', 'bin', 'gdal.dll')
-    else:
-        # Linux/Unix path
-        GDAL_LIBRARY_PATH = os.path.join(CONDA_PREFIX, 'lib', 'libgdal.so')
-    os.environ['GDAL_LIBRARY_PATH'] = GDAL_LIBRARY_PATH
+# Quick-start development settings - unsuitable for production
+# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('SECRET_KEY')
@@ -39,7 +32,9 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = True
 
 # ALLOWED_HOSTS = ['192.168.10.72']
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+# ALLOWED_HOSTS = ['192.168.10.66']
+ALLOWED_HOSTS = [env('ALLOWED_HOSTS')]
+
 
 
 # Application definition
@@ -168,12 +163,11 @@ CELERY_ENABLE_UTC = True
 CELERY_BEAT_SCHEDULE = {
     'fetch-meteo-data': {
         'task': 'analysis.tasks.fetch_meteo_data',
-        'schedule': 10800.0,  # Every 3 hours (3 * 60 * 60 seconds)
+        'schedule': 10800.0,  # Every 3 hours
     },
-    # Upper air data task enabled
     'fetch_upper_air_data': {
         'task': 'analysis.upperair_task.fetch_upper_air_data',
-        'schedule': 10800.0,  # Every 3 hours
+        'schedule': 600.0,  # 
     },
 }
 
@@ -210,7 +204,3 @@ LOGGING = {
         },
     },
 }
-
-# Maximum upload size (default 50 MB if not set)
-DATA_UPLOAD_MAX_MEMORY_SIZE = env.int('MAX_UPLOAD_SIZE', default=50 * 1024 * 1024)
-FILE_UPLOAD_MAX_MEMORY_SIZE = env.int('MAX_UPLOAD_SIZE', default=50 * 1024 * 1024)
