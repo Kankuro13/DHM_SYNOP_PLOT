@@ -1,15 +1,15 @@
 #!/bin/bash
 # Script to import administrative boundary shapefiles into PostgreSQL/PostGIS
-# Usage: ./import.sh <shapefile_path> <table_name>
+# Usage: ./import_boundaries.sh <shapefile_path> <table_name>
 
 set -e
 
 # Database configuration
-DB_NAME="analysis"
-DB_USER="admin"
+DB_NAME="weather_map"
+DB_USER="komal"
 DB_HOST="localhost"
 DB_PORT="5432"
-DB_PASSWORD="7n#2q04Iog|?"
+DB_PASSWORD="password123"
 
 # Check if correct number of arguments provided
 if [ "$#" -ne 2 ]; then
@@ -43,7 +43,6 @@ ogr2ogr -f "PostgreSQL" \
   PG:"dbname=$DB_NAME user=$DB_USER password=$DB_PASSWORD host=$DB_HOST port=$DB_PORT" \
   "$SHAPEFILE" \
   -nln "$TABLE_NAME" \
-  -nlt PROMOTE_TO_MULTI \
   -overwrite \
   -lco GEOMETRY_NAME=geom \
   -lco FID=gid \
