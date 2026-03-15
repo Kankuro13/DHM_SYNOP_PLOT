@@ -1,6 +1,5 @@
 import DragBox from 'ol/interaction/DragBox';
 import { jsPDF } from 'jspdf';
-import { platformModifierKeyOnly } from 'ol/events/condition';
 import { showSpinner, hideSpinner, showWarning } from './utils.js';
 import { config, apiUrl } from './config.js';
 
@@ -348,13 +347,33 @@ function copyMapToClipboard(map, extent) {
   map.renderSync();
 }
 
+export function showAreaFormatPicker(onFormat) {
+  const overlay = document.getElementById('area-export-picker');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  function cleanup() {
+    overlay.querySelectorAll('.aep-btn').forEach(btn => {
+      if (btn._aepHandler) { btn.removeEventListener('click', btn._aepHandler); delete btn._aepHandler; }
+    });
+    const cancel = overlay.querySelector('.aep-cancel');
+    if (cancel && cancel._aepHandler) { cancel.removeEventListener('click', cancel._aepHandler); delete cancel._aepHandler; }
+  }
+  overlay.querySelectorAll('.aep-btn').forEach(btn => {
+    btn._aepHandler = () => { overlay.style.display = 'none'; cleanup(); onFormat(btn.dataset.format); };
+    btn.addEventListener('click', btn._aepHandler);
+  });
+  const cancel = overlay.querySelector('.aep-cancel');
+  if (cancel) {
+    cancel._aepHandler = () => { overlay.style.display = 'none'; cleanup(); };
+    cancel.addEventListener('click', cancel._aepHandler);
+  }
+}
+
 export function addDragBoxExportInteraction(map, callback) {
   if (dragBoxInteraction) {
     map.removeInteraction(dragBoxInteraction);
   }
-  dragBoxInteraction = new DragBox({
-    condition: platformModifierKeyOnly
-  });
+  dragBoxInteraction = new DragBox({});
 
   dragBoxInteraction.on('boxend', () => {
     const extent = dragBoxInteraction.getGeometry().getExtent();

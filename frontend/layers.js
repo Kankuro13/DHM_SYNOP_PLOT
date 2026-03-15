@@ -22,7 +22,7 @@ export const nepal = new TileLayer({
   visible: true,
   source: new TileWMS({
     url: config.geoserverUrl,
-    params: { 'LAYERS': 'NepalAdmin:npl_adm0', 'TILED': true },
+    params: { 'LAYERS': 'NepalAdmin:npl_national', 'TILED': true },
     serverType: 'geoserver',
     crossOrigin: 'anonymous',
   })
@@ -97,7 +97,7 @@ export const srilanka = new TileLayer({
 // WMS layer name pairs for border mode switching.
 // 'adm0' = country border only, 'adm1' = country + provinces.
 export const COUNTRY_WMS = [
-  { layer: nepal,      adm0: 'NepalAdmin:npl_adm0', adm1: 'NepalAdmin:province' },
+  { layer: nepal,      adm0: 'NepalAdmin:npl_national', adm1: 'NepalAdmin:province' },
   { layer: indiaState, adm0: 'NepalAdmin:ind_adm0', adm1: 'NepalAdmin:ind_adm1'  },
   { layer: bhutan,     adm0: 'NepalAdmin:btn_adm0', adm1: 'NepalAdmin:btn_adm1'  },
   { layer: bangladesh, adm0: 'NepalAdmin:bgd_adm0', adm1: 'NepalAdmin:bgd_adm1'  },

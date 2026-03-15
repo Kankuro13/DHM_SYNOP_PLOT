@@ -7,7 +7,7 @@ import { fromLonLat } from 'ol/proj';
 import { config, apiUrl } from './config.js';
 import { editSource, editLayer, measureLayer } from './interactionLayers.js';
 import { saveHistory, undoHistory, redoHistory } from './historyManager.js';
-import { exportMap, copyMapToClipboard, addDragBoxExportInteraction } from './exportInteractions.js';
+import { exportMap, copyMapToClipboard, addDragBoxExportInteraction, showAreaFormatPicker } from './exportInteractions.js';
 import { addMeasureInteraction, clearMeasureInteractions } from './measureInteractions.js';
 import { addEditInteraction, addIconInteraction, addSignInteraction, addTextBoxInteraction, addEraserInteraction, clearEditInteractions } from './editInteractions.js';
 import { showSpinner, hideSpinner, showWarning } from './utils.js';
@@ -128,14 +128,13 @@ export function setupToolbarInteractions(map) {
   document.querySelector('.export-upper-area')?.addEventListener('click', () => {
     showWarning('Draw a rectangle to select the export area.', false);
     addDragBoxExportInteraction(map, (extent) => {
-      const format = prompt('Select export format (jpeg, png, pdf, clipboard):', 'png').toLowerCase();
-      if (['jpeg', 'png', 'pdf'].includes(format)) {
-        exportMap(map, format, 'upper_air_map_area', extent);
-      } else if (format === 'clipboard') {
-        copyMapToClipboard(map, extent);
-      } else {
-        showWarning('Invalid format. Use jpeg, png, pdf, or clipboard.', true);
-      }
+      showAreaFormatPicker((format) => {
+        if (['jpeg', 'png', 'pdf'].includes(format)) {
+          exportMap(map, format, 'upper_air_map_area', extent);
+        } else if (format === 'clipboard') {
+          copyMapToClipboard(map, extent);
+        }
+      });
     });
   });
 
@@ -146,14 +145,13 @@ export function setupToolbarInteractions(map) {
   document.querySelector('.export-area')?.addEventListener('click', () => {
     showWarning('Draw a rectangle to select the export area.', false);
     addDragBoxExportInteraction(map, (extent) => {
-      const format = prompt('Select export format (jpeg, png, pdf, clipboard):', 'png').toLowerCase();
-      if (['jpeg', 'png', 'pdf'].includes(format)) {
-        exportMap(map, format, 'weather_map_area', extent);
-      } else if (format === 'clipboard') {
-        copyMapToClipboard(map, extent);
-      } else {
-        showWarning('Invalid format. Use jpeg, png, pdf, or clipboard.', true);
-      }
+      showAreaFormatPicker((format) => {
+        if (['jpeg', 'png', 'pdf'].includes(format)) {
+          exportMap(map, format, 'weather_map_area', extent);
+        } else if (format === 'clipboard') {
+          copyMapToClipboard(map, extent);
+        }
+      });
     });
   });
 

@@ -452,6 +452,19 @@
   </div>
 
 
+  <div id="area-export-picker" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9000; align-items:center; justify-content:center;">
+    <div style="background:#2a2a2a; color:#fff; border-radius:8px; padding:28px 32px; min-width:280px; text-align:center; box-shadow:0 4px 24px rgba(0,0,0,0.7);">
+      <div style="font-size:16px; font-weight:600; margin-bottom:18px;">Export Selected Area As</div>
+      <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:18px;">
+        <button class="aep-btn" data-format="png" style="background:#2ed573; color:#fff; border:none; padding:10px 18px; border-radius:5px; cursor:pointer; font-size:14px; font-weight:600;">PNG</button>
+        <button class="aep-btn" data-format="jpeg" style="background:#ffa502; color:#fff; border:none; padding:10px 18px; border-radius:5px; cursor:pointer; font-size:14px; font-weight:600;">JPEG</button>
+        <button class="aep-btn" data-format="pdf" style="background:#ff4757; color:#fff; border:none; padding:10px 18px; border-radius:5px; cursor:pointer; font-size:14px; font-weight:600;">PDF</button>
+        <button class="aep-btn" data-format="clipboard" style="background:#4b6cb7; color:#fff; border:none; padding:10px 18px; border-radius:5px; cursor:pointer; font-size:14px; font-weight:600;">Clipboard</button>
+      </div>
+      <button class="aep-cancel" style="background:transparent; color:#aaa; border:1px solid #555; padding:8px 20px; border-radius:5px; cursor:pointer; font-size:13px;">Cancel</button>
+    </div>
+  </div>
+
   <!-- Load runtime env before module -->
   <script src="/env-config.js"></script>
   <script>
